@@ -1,5 +1,4 @@
 import {
-  serverSupabaseClient,
   serverSupabaseUser,
   serverSupabaseServiceRole,
 } from "#supabase/server";
@@ -8,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const user = await serverSupabaseUser(event);
   if (!user) throw createError({ statusCode: 401, message: "Login required" });
 
-  const sb = await serverSupabaseClient(event);
+  const sb = await serverSupabaseServiceRole(event)
   const {
     data: { session },
     error,
