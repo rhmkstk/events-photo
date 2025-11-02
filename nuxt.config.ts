@@ -28,8 +28,7 @@ export default defineNuxtConfig({
       supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
       googleClientId: process.env.GOOGLE_CLIENT_ID,
       googleApiScopes: process.env.GOOGLE_API_SCOPES,
-    },
-    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    }
   }
 })
 
