@@ -1,7 +1,7 @@
 [build]
   command = "npm run build"
-  publish = ".output/public"
-  functions = "netlify/functions"
+  publish = "dist"                      
+  functions = ".netlify/functions-internal"
 
 [build.environment]
   NODE_VERSION = "20"
