@@ -30,7 +30,7 @@ async function onSubmit() {
     // QR içeriği: server'ın verdiği kanonik URL (tercih edilir)
     const payloadUrl =
       res?.qr_upload_url ||
-      `${location.origin}/upload?eventId=${encodeURIComponent(id)}`
+      `${location.origin}/upload/${encodeURIComponent(id)}`
 
     qrLink.value = payloadUrl
     qrDataUrl.value = await QRCode.toDataURL(payloadUrl, {

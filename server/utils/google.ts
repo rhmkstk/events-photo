@@ -1,64 +1,97 @@
-import { OAuth2Client } from 'google-auth-library'
+// server/utils/google.ts
 import { google } from 'googleapis'
-import type { H3Event } from 'h3'
 import { serverSupabaseServiceRole } from '#supabase/server'
+import type { H3Event } from 'h3'
 
-export function getOAuthClient() {
-  return new OAuth2Client({
-    clientId: process.env.GOOGLE_CLIENT_ID!,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
-  })
-}
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI! // callback’inle aynı olsun
 
-async function getSavedTokens(event: H3Event, userId: string) {
+// DB'den token'ları çek ve gerekirse yenile
+export async function getAuthedDrive(
+  event: H3Event,
+  userId: string,
+  opts: { refreshIfExpired?: boolean } = { refreshIfExpired: true }
+) {
   const admin = serverSupabaseServiceRole(event)
-  const { data, error } = await admin
-    .from('user_google_tokens')
-    .select('*').eq('user_id', userId).maybeSingle()
-  if (error) throw createError({ statusCode: 500, message: error.message })
-  return data
-}
 
-async function upsertTokens(event: H3Event, userId: string, patch: Partial<{
-  provider_access_token: string | null
-  provider_refresh_token: string | null
-  expiry_date: number | null
-  scope: string | null
-  token_type: string | null
-}>) {
-  const admin = serverSupabaseServiceRole(event)
-  const { error } = await admin
+  const { data: row, error } = await admin
     .from('user_google_tokens')
-    .upsert({ user_id: userId, updated_at: new Date().toISOString(), ...patch }, { onConflict: 'user_id' })
-  if (error) throw createError({ statusCode: 500, message: error.message })
-}
+    .select('provider_access_token, provider_refresh_token, expiry_date, scope, token_type')
+    .eq('user_id', userId)
+    .maybeSingle()
 
-export async function getAuthedDrive(event: H3Event, userId: string) {
-  const saved = await getSavedTokens(event, userId)
-  if (!saved?.provider_refresh_token) {
-    throw createError({ statusCode: 401, message: 'Google Drive izni yok' })
+  if (error) {
+    throw createError({ statusCode: 500, message: error.message })
+  }
+  if (!row) {
+    throw createError({ statusCode: 401, message: 'Google tokens not found for user' })
   }
 
-  const oAuth2 = getOAuthClient()
-  // access token süresi geçmiş olabilir; refresh varsa yeterli
-  oAuth2.setCredentials({
-    access_token: saved.provider_access_token ?? undefined,
-    refresh_token: saved.provider_refresh_token ?? undefined,
-    expiry_date: saved.expiry_date ?? undefined
+  let accessToken = row.provider_access_token as string | null
+  const refreshToken = row.provider_refresh_token as string | null
+  const expiryDateIso = row.expiry_date as string | null
+
+  // expiry_date ISO ise ms'e çevir
+  const expiryMs = expiryDateIso ? new Date(expiryDateIso).getTime() : null
+  const now = Date.now()
+
+  const needsRefresh =
+    opts.refreshIfExpired &&
+    (!!refreshToken) &&
+    (
+      !accessToken || // yoksa
+      (expiryMs !== null && expiryMs - 60_000 < now) // 1 dk önce expired say
+    )
+
+  const oauth2Client = new google.auth.OAuth2(
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI
+  )
+
+  // ilk set
+  oauth2Client.setCredentials({
+    access_token: accessToken || undefined,
+    refresh_token: refreshToken || undefined,
   })
 
-  // Yeni tokenler geldikçe DB’yi güncelle
-  oAuth2.on('tokens', async (t) => {
-    await upsertTokens(event, userId, {
-      provider_access_token: t.access_token ?? null,
-      provider_refresh_token: t.refresh_token ?? saved.provider_refresh_token ?? null,
-      expiry_date: t.expiry_date ?? null,
-      scope: t.scope ?? saved.scope ?? null,
-      token_type: t.token_type ?? saved.token_type ?? null,
+  if (needsRefresh) {
+    // refresh token yoksa zaten yukarıda throw etmiştik
+    const tokenRes = await oauth2Client.refreshAccessToken()
+    const credentials = tokenRes.credentials
+
+    accessToken = credentials.access_token || accessToken
+
+    // yeni expiry'yi hesapla
+    const expiresIn = (credentials as any).expires_in as number | undefined
+    const newExpiryMs = credentials.expiry_date
+    ? credentials.expiry_date
+    : expiresIn
+      ? now + expiresIn * 1000
+      : null
+
+    // DB'ye geri yaz
+    const { error: upErr } = await admin
+      .from('user_google_tokens')
+      .update({
+        provider_access_token: accessToken,
+        expiry_date: newExpiryMs ? new Date(newExpiryMs).toISOString() : null,
+      })
+      .eq('user_id', userId)
+
+    if (upErr) {
+      console.error('[google] token refresh stored but update failed:', upErr)
+    }
+
+    // client’a da yeni credential’ı ver
+    oauth2Client.setCredentials({
+      access_token: accessToken || undefined,
+      refresh_token: refreshToken || undefined,
+      expiry_date: newExpiryMs || undefined,
     })
-  })
+  }
 
-  const drive = google.drive({ version: 'v3', auth: oAuth2 })
-  return { drive, oAuth2 }
+  const drive = google.drive({ version: 'v3', auth: oauth2Client })
+  return { drive, oauth2Client }
 }
