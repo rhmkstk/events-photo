@@ -21,14 +21,6 @@ export default defineNuxtConfig({
       callback: '/auth/callback',
       exclude: ['/','/create-event']
     }
-  },
-  runtimeConfig: {
-    public: {
-      supabaseUrl: process.env.SUPABASE_URL,
-      supabaseAnonKey: process.env.SUPABASE_ANON_KEY,
-      googleClientId: process.env.GOOGLE_CLIENT_ID,
-      googleApiScopes: process.env.GOOGLE_API_SCOPES,
-    }
   }
 })
 

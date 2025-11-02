@@ -5,7 +5,7 @@ const user = useSupabaseUser()
 
 async function handleStartNow() {
   if (user.value) {
-    await router.push('/events/create')
+    await router.push('/create-event')
     return
   }
   await loginWithGoogle()
