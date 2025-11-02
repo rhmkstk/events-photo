@@ -1,6 +1,9 @@
-<!-- pages/events/create.vue -->
 <script setup lang="ts">
 import QRCode from 'qrcode'
+
+definePageMeta({
+  middleware: ['require-auth']
+})
 
 const title = ref('')
 const startDate = ref('')

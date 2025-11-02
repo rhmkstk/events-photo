@@ -14,7 +14,7 @@ function buildPublicUploadUrl(event: any, eventId: string) {
   // Nuxt/Nitro helper
   const url = getRequestURL(event)
   const origin = `${url.protocol}//${url.host}` // X-Forwarded-* ile de uyumlu çalışır
-  return `${origin}/upload?eventId=${encodeURIComponent(eventId)}`
+  return `${origin}/upload/${encodeURIComponent(eventId)}`
 }
 
 export default defineEventHandler(async (event) => {
