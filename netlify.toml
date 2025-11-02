@@ -1,0 +1,7 @@
+[build]
+  command = "npm run build"
+  publish = ".output/public"
+  functions = "netlify/functions"
+
+[build.environment]
+  SERVER_PRESET = "netlify"
