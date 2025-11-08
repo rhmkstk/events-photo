@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import QRCode from 'qrcode'
 
-definePageMeta({
-  middleware: ['require-auth']
-})
+definePageMeta({ middleware: ['auth-client'] })
+
 
 const title = ref('')
 const startDate = ref('')
