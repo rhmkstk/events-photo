@@ -4,9 +4,9 @@ const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const eventId = computed(() => route.params.id?.toString() || "")
 
-const MAX_FILES = 5
-const MAX_FILE_SIZE = 8 * 1024 * 1024
-const TOTAL_MAX = 20 * 1024 * 1024
+const MAX_FILES = 10
+const MAX_FILE_SIZE = 12 * 1024 * 1024
+const TOTAL_MAX = 150 * 1024 * 1024
 
 const selectedFiles = ref<File[]>([])
 const uploading = ref(false)
@@ -145,9 +145,10 @@ async function handleUpload() {
         } else {
           try {
             const parsed = JSON.parse(xhr!.responseText)
-            reject(new Error(parsed.message || "Upload failed"))
+            console.log("Upload error response:", parsed)
+            reject(new Error(parsed.message || "Upload failed from client"))
           } catch {
-            reject(new Error("Upload failed"))
+            reject(new Error("Upload failed from client"))
           }
         }
       }
