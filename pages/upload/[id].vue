@@ -209,11 +209,11 @@ function cancelUpload() {
       </div>
 
       <!-- gizli input -->
+       
       <input
         ref="fileInputRef"
         type="file"
         accept="image/*"
-        capture="environment"
         multiple
         class="hidden"
         :disabled="eventNotFound || eventLoading"
