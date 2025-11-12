@@ -143,13 +143,19 @@ async function handleUpload() {
         if (xhr!.status >= 200 && xhr!.status < 300) {
           resolve()
         } else {
+          let parsed: any = null
           try {
-            const parsed = JSON.parse(xhr!.responseText)
-            console.log("Upload error response:", parsed)
-            reject(new Error(parsed.message || "Upload failed from client"))
+            parsed = JSON.parse(xhr!.responseText)
           } catch {
-            reject(new Error("Upload failed from client"))
+            // ignore parse error, we'll fall back to status text
           }
+          console.log("Upload error response:", parsed || xhr!.responseText)
+          const serverMessage =
+            parsed?.message ||
+            parsed?.data?.message ||
+            parsed?.statusMessage ||
+            xhr!.statusText
+          reject(new Error(serverMessage || "Upload failed from client"))
         }
       }
 
